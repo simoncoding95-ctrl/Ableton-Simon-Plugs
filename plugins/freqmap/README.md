@@ -12,9 +12,7 @@ Carte « où vit chaque son » : quelle piste occupe quelle zone du spectre, sur
 - **FreqMap** — un seul, sur le Master. Une ligne par piste, axe log 20 Hz – 20 kHz ; une piste peut avoir plusieurs zones (ex. kick : sub + clic). Orange = au moins deux pistes fortes sur la même bande (masquage probable). Survol = fréquence + pistes en conflit. Modes PISTES / GUIDE, BOUCLE, MÉMOIRE, RESET, AGRANDIR.
 
 ## Mode BOUCLE
-N'analyse que pendant la boucle de l'Arrangement (crochet de boucle). La carte montre le dernier passage complet, plus le passage en cours. Hors boucle ou à l'arrêt, rien n'est enregistré. Changer la boucle de place repart de zéro. Le bandeau indique les mesures et l'état (`● analyse`, `hors boucle : en pause`, `lecture arrêtée`).
-
-Usage : poser le crochet sur une section (drop, break), lancer la lecture, lire la carte de cette section seule.
+Cycle calé sur le tempo de Live, en Session comme en Arrangement. Clic sur BOUCLE : 1 → 2 → 4 → 8 mesures → off. La carte montre tout ce qui a sonné pendant le dernier cycle complet (ex. 1 mesure = 16 pas de 1/16, 1,92 s à 125 BPM), plus le cycle en cours ; elle se renouvelle à chaque cycle. Un son joué une seule fois au pas 16 reste visible tout le cycle suivant. Le bandeau affiche le pas courant (`● pas 9 / 16`). Les cycles sont alignés sur les mesures de Live : régler la longueur du cycle sur celle des clips.
 
 ## Installation
 Copier `dist/*.amxd` **et** les deux `.js` dans un même dossier de la User Library (ex. `Presets/Audio Effects/Max Audio Effect/FreqMap/`).
