@@ -21,6 +21,9 @@ var tracks = {};       // id -> {name, color, cur[], hold[], last}
 var order = [];        // ids dans l'ordre du Live Set
 var mode = "tracks";   // "tracks" | "guide"
 var holdOn = 1;
+// Mode BOUCLE : n'analyse que pendant la boucle (loop brace) de l'Arrangement.
+var loopOn = 0, loopStart = 0, loopLen = 0, sigNum = 4, loopKey = "";
+var playing = 0, songTime = 0, inLoop = 0, lastSongTime = -1, songApi = null;
 var hoverX = -1;
 var buttons = [];
 var lastOrder = 0;
@@ -46,14 +49,18 @@ function probe() {
     var id = String(a[0]);
     var now = Date.now();
     var t = tracks[id];
-    if (!t) t = tracks[id] = { cur: filled(-120), hold: filled(-120), last: now };
+    if (!t) t = tracks[id] = { cur: filled(-120), hold: filled(-120), acc: filled(-120), full: filled(-120), last: now };
     t.color = Number(a[1]);
     t.name = String(a[2]);
     var dt = Math.min(0.5, (now - t.last) / 1000);
     for (var i = 0; i < N; i++) {
         var v = Number(a[3 + i]);
         t.cur[i] = v > t.cur[i] ? v : Math.max(v, t.cur[i] - REL_DB_S * dt);
-        if (holdOn) t.hold[i] = v > t.hold[i] ? v : t.hold[i] - HOLD_DB_S * dt;
+        if (loopOn) {
+            if (inLoop && v > t.acc[i]) t.acc[i] = v;
+            t.hold[i] = Math.max(t.full[i], t.acc[i]);
+        }
+        else if (holdOn) t.hold[i] = v > t.hold[i] ? v : t.hold[i] - HOLD_DB_S * dt;
         else t.hold[i] = t.cur[i];
     }
     t.last = now;
@@ -61,7 +68,43 @@ function probe() {
 
 function bye(id) { delete tracks[String(id)]; }
 
+// Boucle : "full" = dernier passage complet, "acc" = passage en cours.
+function loopReset() {
+    for (var id in tracks) { tracks[id].full = filled(-120); tracks[id].acc = filled(-120); tracks[id].hold = filled(-120); }
+}
+function loopWrap() {
+    for (var id in tracks) { tracks[id].full = tracks[id].acc; tracks[id].acc = filled(-120); }
+}
+function loopEnter() {
+    for (var id in tracks) tracks[id].acc = filled(-120);
+}
+
+function pollTransport(full) {
+    try {
+        if (!songApi || songApi.id == 0) songApi = new LiveAPI("live_set");
+        if (songApi.id == 0) return;
+        playing = Number(songApi.get("is_playing"));
+        songTime = Number(songApi.get("current_song_time"));
+        if (full) {
+            loopStart = Number(songApi.get("loop_start"));
+            loopLen = Number(songApi.get("loop_length"));
+            sigNum = Number(songApi.get("signature_numerator")) || 4;
+        }
+    } catch (e) { return; }
+    var was = lastSongTime >= 0;
+    inLoop = playing && loopLen > 0 && songTime >= loopStart && songTime < loopStart + loopLen;
+    if (!loopOn) { lastSongTime = -1; return; }
+    var key = loopStart + ":" + loopLen;
+    if (key !== loopKey) { loopKey = key; loopReset(); }
+    else if (inLoop && was && songTime < lastSongTime - 0.05) loopWrap();
+    else if (inLoop && !was) loopEnter();
+    lastSongTime = inLoop ? songTime : -1;
+}
+
+function bars(beats) { return Math.floor(beats / sigNum) + 1; }
+
 function reset() {
+    if (loopOn) { loopReset(); return; }
     for (var id in tracks) tracks[id].hold = tracks[id].cur.slice();
 }
 
@@ -112,7 +155,10 @@ function rgb(c) { return [((c >> 16) & 255) / 255, ((c >> 8) & 255) / 255, (c & 
 
 var task = new Task(function () {
     var now = Date.now();
-    if (now - lastOrder > 2000) { lastOrder = now; refreshOrder(); }
+    var slow = now - lastOrder > 500;
+    if (slow) lastOrder = now;
+    if (slow && Math.random() < 0.25) refreshOrder();
+    pollTransport(slow);
     mgraphics.redraw();
 }, this);
 task.interval = 50;
@@ -211,8 +257,14 @@ function paint() {
     buttons = [];
     g.set_source_rgba(0.93, 0.45, 0.13, 1);
     g.move_to(L, top - 4); g.show_text("FreqMap");
+    if (loopOn) {
+        var st = "BOUCLE mes. " + bars(loopStart) + " → " + bars(loopStart + loopLen) +
+            (inLoop ? "  ● analyse" : playing ? "  hors boucle : en pause" : "  lecture arrêtée");
+        g.set_source_rgba(1, 1, 1, inLoop ? 0.9 : 0.5);
+        g.move_to(L + g.text_measure("FreqMap")[0] + 10, top - 4); g.show_text(st);
+    }
     var labels = [["mode", mode === "guide" ? "GUIDE" : "PISTES", 1],
-                  ["hold", "MÉMOIRE", holdOn], ["reset", "RESET", 0]];
+                  ["loop", "BOUCLE", loopOn], ["hold", "MÉMOIRE", holdOn && !loopOn], ["reset", "RESET", 0]];
     if (!big) labels.push(["open", "AGRANDIR", 0]);
     var bx = W - Rm;
     for (k = labels.length - 1; k >= 0; k--) {
@@ -270,7 +322,8 @@ function onclick(x, y) {
         var b = buttons[k];
         if (x < b[1] || x > b[2]) continue;
         if (b[0] === "mode") mode = mode === "guide" ? "tracks" : "guide";
-        else if (b[0] === "hold") holdOn = holdOn ? 0 : 1;
+        else if (b[0] === "hold") { holdOn = holdOn ? 0 : 1; loopOn = 0; }
+        else if (b[0] === "loop") { loopOn = loopOn ? 0 : 1; loopKey = ""; lastSongTime = -1; if (loopOn) loopReset(); }
         else if (b[0] === "reset") reset();
         else if (b[0] === "open") outlet(0, "open");
         mgraphics.redraw();
