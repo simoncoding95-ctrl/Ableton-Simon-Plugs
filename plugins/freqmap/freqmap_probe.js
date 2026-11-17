@@ -56,7 +56,7 @@ function init() {
     colorApi.property = "color";
     if (task) task.cancel();
     task = new Task(send, this);
-    task.interval = 50;
+    task.interval = 20;
     task.repeat();
 }
 

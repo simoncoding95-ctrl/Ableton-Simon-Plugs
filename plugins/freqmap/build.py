@@ -47,7 +47,7 @@ def probe():
     p.wire(i, 0, add, 0); p.wire(i, 1, add, 1); p.wire(add, 0, half, 0); p.wire(half, 0, fb, 0)
     js = p.box(text="js freqmap_probe.js", rect=(120, 260, 600, 20), ins=N, outs=1, otypes=[""])
     for k in range(N):
-        pk = p.box(text="peakamp~ 50", rect=(120 + k * 20, 180 + (k % 2) * 30, 70, 20), ins=2, outs=1, otypes=["float"])
+        pk = p.box(text="peakamp~ 20", rect=(120 + k * 20, 180 + (k % 2) * 30, 70, 20), ins=2, outs=1, otypes=["float"])
         p.wire(fb, k, pk, 0); p.wire(pk, 0, js, k)
     snd = p.box(text="s freqmap_bus", rect=(120, 300, 90, 20), ins=1, outs=0)
     p.wire(js, 0, snd, 0)
