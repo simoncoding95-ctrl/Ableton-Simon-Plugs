@@ -1,26 +1,22 @@
 # FreqMap
 
-Carte « où vit chaque son » : quelle piste occupe quelle zone du spectre, sur un seul visuel.
+Grille 16 pas par piste : quelle fréquence sonne à quel pas, et où les pistes se marchent dessus.
 
-![FreqMap — mode PISTES](docs/freqmap.png)
-*Mode PISTES, fenêtre agrandie. Rendu du code d'affichage avec des données de démonstration (`tools/render_view.js`), pas une capture de Live.*
+![FreqMap](docs/freqmap-grille.png)
+*Simulation d'un pattern d'une mesure à 125 BPM (`tools/render_view.js`), pas une capture de Live. Seul conflit : kick + basse au pas 1.*
 
-![FreqMap — mode GUIDE](docs/freqmap-guide.png)
-![FreqMap — mode GRILLE](docs/freqmap-grille.png)
-*Mode GRILLE : une colonne par pas de 1/16, spectre vertical de chaque piste dans chaque case (grave en bas). Cadre orange = deux pistes fortes sur la même bande au même pas. Simulation d'un pattern d'1 mesure à 125 BPM, pas une capture de Live.*
+## Les deux devices
+- **FreqMap Probe** : à poser en fin de chaîne sur chaque piste. Analyse en 30 bandes de 1/3 d'octave (25 Hz – 20 kHz) toutes les 20 ms ; récupère nom et couleur de la piste via la Live API (même dans un rack).
+- **FreqMap** : un seul, sur le Master. Affiche la grille.
 
-*Mode GUIDE : zones de référence à garder en tête pendant tout le mixage.*
-
-- **FreqMap Probe** — à poser sur chaque piste. Analyse en 30 bandes de 1/3 d'octave (25 Hz – 20 kHz), récupère nom et couleur de la piste via la Live API.
-- **FreqMap** — un seul, sur le Master. Une ligne par piste, axe log 20 Hz – 20 kHz ; une piste peut avoir plusieurs zones (ex. kick : sub + clic). Orange = au moins deux pistes fortes sur la même bande (masquage probable). Survol = fréquence + pistes en conflit. Modes PISTES / GRILLE / GUIDE, BOUCLE, MÉMOIRE, RESET, AGRANDIR.
-
-## Mode BOUCLE
-Cycle calé sur le tempo de Live, en Session comme en Arrangement. Clic sur BOUCLE : 1 → 2 → 4 → 8 mesures → off. La carte montre tout ce qui a sonné pendant le dernier cycle complet (ex. 1 mesure = 16 pas de 1/16, 1,92 s à 125 BPM), plus le cycle en cours ; elle se renouvelle à chaque cycle. Un son joué une seule fois au pas 16 reste visible tout le cycle suivant. Le bandeau affiche le pas courant (`● pas 9 / 16`). Les cycles sont alignés sur les mesures de Live : régler la longueur du cycle sur celle des clips.
-
-## Mode GRILLE
-Une ligne par piste, une colonne par pas de 1/16 (16 pas par mesure en 4/4). Dans chaque case, le spectre de la piste à ce pas, grave en bas, repères 100 Hz / 1k / 10k. Les pas déjà joués du cycle en cours sont à jour, les suivants montrent le cycle précédent. Longueur : celle de BOUCLE si active (2 mesures = 32 pas…), sinon 1 mesure. Cadre orange = conflit au même pas et sur la même bande ; survol = pas, fréquence et pistes concernées.
-
-Calage : la vue compense un retard estimé de 40 ms entre l'audio et l'affichage (`LAT_MS` dans `freqmap_view.js`). Si tout apparaît décalé d'un pas dans Live, c'est ce réglage.
+## Lecture de la grille
+- Une ligne par piste, une colonne par pas de 1/16 sur une mesure (16 pas en 4/4).
+- Dans chaque case : le spectre de la piste à ce pas, grave en bas, repères 100 Hz / 1k / 10k.
+- **Conflit** = au moins deux pistes fortes (à moins de 9 dB de leur propre pic) sur la même bande au même pas. Ces zones restent en couleur pleine et sont cerclées de blanc ; le reste est atténué.
+- **Ligne CONFLITS** (en bas) : uniquement les bandes en conflit, par pas ; plus blanc = 3 pistes ou plus.
+- Survol : pas, fréquence, pistes concernées.
+- Les pas déjà joués de la mesure en cours sont à jour ; les suivants montrent la mesure précédente.
+- **RESET** vide la grille. **AGRANDIR** ouvre la vue en 1200 × 620.
 
 ## Installation
 Copier `dist/*.amxd` **et** les deux `.js` dans un même dossier de la User Library (ex. `Presets/Audio Effects/Max Audio Effect/FreqMap/`).
@@ -29,4 +25,6 @@ Copier `dist/*.amxd` **et** les deux `.js` dans un même dossier de la User Libr
 `python3 build.py` → `dist/`
 
 ## Limites
-Mesure en crête par bande, pas en sonie perçue. Device non gelé (Freeze dans Max pour le distribuer en un seul fichier).
+- Mesure en crête par bande, pas en sonie perçue.
+- Calage temps : la vue compense un retard estimé de 40 ms (`LAT_MS` dans `freqmap_view.js`). Si tout apparaît décalé d'un pas, c'est ce réglage.
+- Device non gelé (Freeze dans Max pour le distribuer en un seul fichier).
